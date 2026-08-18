@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#FF9A8B">
   <title>家庭赚¥指南</title>
-  <link rel="stylesheet" href="css/style.css?v=20260817c">
+  <link rel="stylesheet" href="css/style.css?v=20260818c">
 </head>
 <body>
 
@@ -81,17 +81,26 @@
       <div class="basic-task-list" id="homeBasicTasks"></div>
       <button class="btn-preview-claim" id="btnPreviewClaim">🎬 预览到账动画</button>
 
-      <!-- 赚钱任务 -->
-      <div class="section-header" style="margin-top:12px">
-        <h2>💰 赚钱项目</h2>
-      </div>
-      <div class="task-grid" id="homeEarnTasks"></div>
-
-      <!-- 扣款项目 -->
+      <!-- 赚与罚（双栏并列） -->
       <div class="section-header" style="margin-top:16px">
-        <h2>⚠️ 扣款项目</h2>
+        <h2>赚与罚</h2>
       </div>
-      <div class="task-grid" id="homePenaltyTasks"></div>
+      <div class="earn-penalty-grid">
+        <div class="earn-col">
+          <div class="earn-col-header">
+            <span class="earn-col-icon green">💰</span>
+            <span>赚钱花</span>
+          </div>
+          <div class="earn-list" id="homeEarnTasks"></div>
+        </div>
+        <div class="earn-col">
+          <div class="earn-col-header penalty">
+            <span class="earn-col-icon red">🔴</span>
+            <span>扣款项</span>
+          </div>
+          <div class="earn-list" id="homePenaltyTasks"></div>
+        </div>
+      </div>
 
       <!-- 今日动态 -->
       <div class="section-header" style="margin-top:16px">
@@ -100,34 +109,42 @@
       <div class="today-feed" id="homeTodayFeed"></div>
     </div>
 
-    <!-- ===== 记录页 ===== -->
-    <div class="content-view" id="view-records">
-      <div class="section-header">
-        <h2>📝 收支记录</h2>
+    <!-- ===== 成就页（成就墙 + 收支记录） ===== -->
+    <div class="content-view" id="view-achievements">
+      <div class="ach-pill-tabs">
+        <button class="ach-pill-tab active" data-subtab="achievements">🏅 成就墙</button>
+        <button class="ach-pill-tab" data-subtab="records">📝 收支记录</button>
       </div>
-      <div class="filter-bar">
-        <select class="filter-select" id="filterMember">
-          <option value="">全部成员</option>
-        </select>
-        <select class="filter-select" id="filterType">
-          <option value="">全部类型</option>
-          <option value="earn">💰 赚钱</option>
-          <option value="penalty">📉 扣款</option>
-          <option value="redeem">🎁 兑换</option>
-          <option value="wish">🌟 心愿</option>
-        </select>
-        <select class="filter-select" id="filterTask">
-          <option value="">全部任务</option>
-        </select>
+      <div class="sub-page active" id="subpage-achievements">
+        <div class="achievement-wall" id="achievementWall">
+          <!-- JS动态生成 -->
+        </div>
       </div>
-      <div class="record-list" id="recordList"></div>
+      <div class="sub-page" id="subpage-records">
+        <div class="filter-bar">
+          <select class="filter-select" id="filterMember">
+            <option value="">全部成员</option>
+          </select>
+          <select class="filter-select" id="filterType">
+            <option value="">全部类型</option>
+            <option value="earn">💰 赚钱</option>
+            <option value="penalty">📉 扣款</option>
+            <option value="redeem">🎁 兑换</option>
+            <option value="wish">🌟 心愿</option>
+          </select>
+          <select class="filter-select" id="filterTask">
+            <option value="">全部任务</option>
+          </select>
+        </div>
+        <div class="record-list" id="recordList"></div>
+      </div>
     </div>
 
     <!-- ===== 排行页 ===== -->
     <div class="content-view" id="view-ranking">
-      <div class="sub-tabs">
-        <button class="sub-tab active" data-subtab="ranking">🏆 排行榜</button>
-        <button class="sub-tab" data-subtab="income">💰 收入</button>
+      <div class="ranking-pill-tabs">
+        <button class="ranking-pill-tab active" data-subtab="ranking">排行榜</button>
+        <button class="ranking-pill-tab" data-subtab="income">收入</button>
       </div>
       <div class="sub-page active" id="subpage-ranking">
         <div class="ranking-list" id="rankingList"></div>
@@ -142,32 +159,26 @@
       </div>
     </div>
 
-    <!-- ===== 奖励页（奖励商店 + 心愿） ===== -->
+    <!-- ===== 奖励页（心愿 + 奖励商店 + 已达成心愿） ===== -->
     <div class="content-view" id="view-rewards">
-      <div class="section-header">
-        <h2>🎁 奖励商店</h2>
-        <button class="btn-add" data-action="add-reward">＋</button>
-      </div>
-      <div class="reward-list" id="rewardList"></div>
-
-      <div class="section-header" style="margin-top:20px">
-        <h2>🌟 我的心愿</h2>
-        <button class="btn-add" data-action="add-wish">＋</button>
+      <div class="reward-section-title">
+        <span class="reward-section-icon">🌟</span>
+        <span>我的心愿</span>
+        <button class="btn-add-circle" data-action="add-wish" title="添加心愿">＋</button>
       </div>
       <div class="wish-list" id="wishList"></div>
+
+      <div class="reward-section-title">
+        <span class="reward-section-icon">🎁</span>
+        <span>兑换中心 (Reward Store)</span>
+        <button class="btn-add-circle" data-action="add-reward" title="添加奖励">＋</button>
+      </div>
+      <div class="reward-list" id="rewardList"></div>
 
       <div class="section-header" style="margin-top:20px">
         <h2>🎉 已达成心愿</h2>
       </div>
       <div class="wish-achieved-list" id="wishAchievedList"></div>
-
-      <!-- 成就墙 -->
-      <div class="section-header" style="margin-top:20px">
-        <h2>🏅 成就墙</h2>
-      </div>
-      <div class="achievement-wall" id="achievementWall">
-        <!-- JS动态生成 -->
-      </div>
     </div>
 
     <!-- ===== 我的页 ===== -->
@@ -210,8 +221,8 @@
         <div class="profile-item" id="weeklyBaseSetting">
           <div class="profile-item-icon">💵</div>
           <div class="profile-item-info">
-            <div class="profile-item-name">每周基础零花钱</div>
-            <div class="profile-item-meta" id="weeklyBaseDisplay">¥10 / 周</div>
+            <div class="profile-item-name">每日基础零花钱</div>
+            <div class="profile-item-meta" id="weeklyBaseDisplay">¥2 / 天</div>
           </div>
           <button class="icon-btn" id="editWeeklyBase">✏️</button>
         </div>
@@ -231,15 +242,15 @@
   <!-- ========== 底部 TabBar ========== -->
   <nav class="tabbar" id="tabbar">
     <button class="tabbar-item active" data-view="home">
-      <span class="tabbar-icon">🏠</span>
+      <span class="tabbar-icon">🏡</span>
       <span class="tabbar-label">首页</span>
     </button>
-    <button class="tabbar-item" data-view="records">
-      <span class="tabbar-icon">📝</span>
-      <span class="tabbar-label">记录</span>
+    <button class="tabbar-item" data-view="achievements">
+      <span class="tabbar-icon">🥇</span>
+      <span class="tabbar-label">成就</span>
     </button>
     <button class="tabbar-item" data-view="ranking">
-      <span class="tabbar-icon">🏆</span>
+      <span class="tabbar-icon">👑</span>
       <span class="tabbar-label">排行</span>
     </button>
     <button class="tabbar-item" data-view="rewards">
@@ -247,7 +258,7 @@
       <span class="tabbar-label">奖励</span>
     </button>
     <button class="tabbar-item" data-view="profile">
-      <span class="tabbar-icon">👤</span>
+      <span class="tabbar-icon">👦</span>
       <span class="tabbar-label">我的</span>
     </button>
   </nav>
@@ -289,7 +300,7 @@
 
 <input type="file" id="importFile" accept=".json" style="display:none">
 
-<script src="js/store.js?v=20260817c"></script>
-<script src="js/app.js?v=20260817c"></script>
+<script src="js/store.js?v=20260818a"></script>
+<script src="js/app.js?v=20260818a"></script>
 </body>
 </html>
