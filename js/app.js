@@ -84,6 +84,34 @@ const App = {
         document.getElementById('subpage-' + target).classList.add('active');
         if (target === 'ranking') this.renderRanking();
         if (target === 'income') this.renderIncome();
+        if (target === 'achievements') this.renderAchievements();
+        if (target === 'records') this.renderRecords();
+      });
+    });
+
+    // 排行页独立药丸 Tab（视觉与 .sub-tab 不同）
+    document.querySelectorAll('.ranking-pill-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.subtab;
+        document.querySelectorAll('.ranking-pill-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.sub-page').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('subpage-' + target).classList.add('active');
+        if (target === 'ranking') this.renderRanking();
+        if (target === 'income') this.renderIncome();
+      });
+    });
+
+    // 成就页独立药丸 Tab
+    document.querySelectorAll('.ach-pill-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.subtab;
+        document.querySelectorAll('.ach-pill-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#view-achievements .sub-page').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('subpage-' + target).classList.add('active');
+        if (target === 'achievements') this.renderAchievements();
+        if (target === 'records') this.renderRecords();
       });
     });
 
@@ -133,7 +161,7 @@ const App = {
     document.getElementById('view-' + v).classList.add('active');
 
     if (v === 'home') this.renderHome();
-    if (v === 'records') this.renderRecords();
+    if (v === 'achievements') this.renderAchievementsView();
     if (v === 'ranking') {
       this.renderRanking();
       // 检查当前激活的子标签页，同步渲染
@@ -174,7 +202,7 @@ const App = {
     this.state.selectedMemberId = memberId;
     this.renderMemberBar();
     if (this.state.currentView === 'home') this.renderHome();
-    if (this.state.currentView === 'records') this.renderRecords();
+    if (this.state.currentView === 'achievements') this.renderAchievementsView();
     if (this.state.currentView === 'rewards') this.renderRewardsView();
   },
 
@@ -195,13 +223,14 @@ const App = {
 
   renderGreeting() {
     const hour = new Date().getHours();
-    let greeting = '早上好呀！☀️';
-    if (hour >= 11 && hour < 13) greeting = '中午好呀！🌤️';
-    else if (hour >= 13 && hour < 18) greeting = '下午好呀！🌈';
-    else if (hour >= 18) greeting = '晚上好呀！🌙';
+    let greeting = '早上好';
+    if (hour >= 11 && hour < 13) greeting = '中午好';
+    else if (hour >= 13 && hour < 18) greeting = '下午好';
+    else if (hour >= 18) greeting = '晚上好';
 
-    document.getElementById('greetingTitle').textContent = greeting;
     const member = this.state.selectedMemberId ? Store.getMember(this.state.selectedMemberId) : null;
+    const nameHtml = member ? `<b>${this.escape(member.name)}</b>` : '<b>宝宝</b>';
+    document.getElementById('greetingTitle').innerHTML = `${greeting}，${nameHtml} <span style="font-size:0.85em">🖐️</span>`;
     document.getElementById('greetingSubtitle').textContent = member
       ? `今天也要帮 ${this.escape(member.name)} 赚零花钱呀 ✨`
       : '选择成员开始赚零花钱吧 ✨';
@@ -211,7 +240,7 @@ const App = {
     document.getElementById('greetingDate').textContent =
       `📅 ${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${weekDays[now.getDay()]}`;
 
-    const mascots = ['🐰', '🐻', '🐱', '🐶', '🦊', '🐼'];
+    const mascots = ['🦊', '🐰', '🐻', '🐱', '🐶', '🐼', '🐯', '🐸'];
     document.getElementById('greetingMascot').textContent = mascots[Math.floor(Math.random() * mascots.length)];
   },
 
@@ -375,12 +404,7 @@ const App = {
     const basicTasks = Store.getBasicTasks();
     const settings = Store.getSettings();
 
-    if (basicTasks.length === 0) {
-      container.innerHTML = `<div class="empty-state" style="padding:12px"><div class="empty-state-text">暂无基础任务，去「我的」添加吧</div></div>`;
-      badge.textContent = '0/0';
-      return;
-    }
-
+    // 今日任务进度（每日重置）
     let completedCount = 0;
     let allDone = false;
     if (memberId) {
@@ -390,28 +414,42 @@ const App = {
     }
     badge.textContent = `${completedCount}/${basicTasks.length}`;
 
-    let html = basicTasks.map(t => {
-      const isDone = memberId ? Store.isBasicTaskCompletedThisWeek(t.id, memberId) : false;
-      return `
-        <div class="basic-task-item ${isDone ? 'done' : ''}" data-basic-task="${t.id}">
-          <div class="basic-task-check ${isDone ? 'checked' : ''}">${isDone ? '✅' : '⬜'}</div>
-          <span class="basic-task-icon">${t.icon}</span>
-          <span class="basic-task-name">${this.escape(t.name)}</span>
-        </div>`;
-    }).join('');
+    let html = '';
 
-    // 检查是否已领取本周基础零花钱
-    const alreadyClaimed = memberId && allDone && Store.getRecords().some(r =>
-      r.memberId === memberId && r.recordType === 'basic' && r.week === Store._weekStr()
+    // 今日基础任务清单
+    if (basicTasks.length > 0) {
+      html += basicTasks.map(t => {
+        const isDone = memberId ? Store.isBasicTaskCompletedThisWeek(t.id, memberId) : false;
+        return `
+          <div class="basic-task-item ${isDone ? 'done' : ''}" data-basic-task="${t.id}">
+            <div class="basic-task-check ${isDone ? 'checked' : ''}">${isDone ? '✅' : '⬜'}</div>
+            <span class="basic-task-icon">${t.icon}</span>
+            <span class="basic-task-name">${this.escape(t.name)}</span>
+          </div>`;
+      }).join('');
+    } else {
+      html += `<div class="empty-state" style="padding:12px"><div class="empty-state-text">暂无基础任务，去「我的」添加吧</div></div>`;
+    }
+
+    // 今日是否已领取（每日一次）
+    const alreadyClaimed = memberId && Store.getRecords().some(r =>
+      r.memberId === memberId && r.recordType === 'basic' && r.date === Store._todayStr()
     );
 
-    // 全部完成 → 显示领取按钮或已领取提示
-    if (memberId && allDone) {
+    // 状态提示 / 领取按钮 / 已领取
+    if (memberId) {
       if (alreadyClaimed) {
-        html += `<div class="basic-claim-bar claimed">🎉 本周基础零花钱 ¥${settings.weeklyBaseAmount} 已领取！</div>`;
-      } else {
-        html += `<button class="btn-claim-basic" id="btnClaimBasic">🎁 全部完成！领取 ¥${settings.weeklyBaseAmount} 基础零花钱</button>`;
+        html += `<div class="basic-claim-bar claimed">🎉 今日基础零花钱 ¥${settings.weeklyBaseAmount} 已领取！</div>`;
+      } else if (allDone && basicTasks.length > 0) {
+        html += `<button class="btn-claim-basic" id="btnClaimBasic">🎁 今日已完成！领取 ¥${settings.weeklyBaseAmount} 基础零花钱</button>`;
+      } else if (basicTasks.length > 0) {
+        html += `<div class="basic-claim-bar">
+          <span>✅ 今日任务 <b>${completedCount}/${basicTasks.length}</b></span>
+          <span class="basic-claim-hint">全部完成即可领取今日基础零花钱 ¥${settings.weeklyBaseAmount}</span>
+        </div>`;
       }
+    } else {
+      html += `<div class="basic-claim-bar"><span>👆 请先选择成员</span></div>`;
     }
 
     container.innerHTML = html;
@@ -429,53 +467,62 @@ const App = {
         Store.toggleBasicTaskThisWeek(item.dataset.basicTask, memberId);
         this.renderHomeBasicTasks();
         this.renderMemberBar();
+        // 勾选后：今日任务全部完成且未领取 → 自动弹出「今日已完成」并到账
+        const progress = Store.getBasicTaskProgress(memberId);
+        const claimedToday = Store.getRecords().some(r =>
+          r.memberId === memberId && r.recordType === 'basic' && r.date === Store._todayStr()
+        );
+        if (progress.allDone && !claimedToday) {
+          this.claimBasicAllowanceFlow(memberId, item);
+        }
       });
     });
 
     const claimBtn = document.getElementById('btnClaimBasic');
-    if (claimBtn) {
-      claimBtn.onclick = () => {
-        const result = Store.claimBasicAllowance(memberId);
-        if (result.error) { this.toast(result.error, 'error'); return; }
-        // claimBasicAllowance 直接返回 record 对象
-        const amount = result.amount;
-        // 记录按钮位置（飞行动画起点），避免后续 re-render 后失效
-        const btnRect = claimBtn.getBoundingClientRect();
-        // 直接更新余额 DOM — 最可靠的方式
-        const overviewEl = document.getElementById('overviewCards');
-        if (overviewEl) {
-          const newBalance = Store.getMemberBalance(memberId);
-          const weekStats = Store.getWeekStats(0);
-          const mw = weekStats.memberStats.find(m => m.id === memberId);
-          overviewEl.innerHTML =
-            `<div class="overview-card">
-              <div class="overview-card-label">💰 可用余额</div>
-              <div class="overview-card-value earn">¥${newBalance.toFixed(1)}</div>
-              <div class="overview-card-sub">累计 ${Store.getMemberEarned(memberId).toFixed(1)} · 罚款 ${Store.getMemberPenalties(memberId).toFixed(1)}</div>
-            </div>
-            <div class="overview-card">
-              <div class="overview-card-label">📅 本周收支</div>
-              <div class="overview-card-value earn">+¥${(mw ? mw.earned : 0).toFixed(1)}</div>
-              <div class="overview-card-sub">${(mw && mw.penalty > 0) ? `罚款 -¥${mw.penalty.toFixed(1)}` : '暂无罚款 🎉'}</div>
-            </div>`;
-          // 余额数字滚动动画：从（新余额 - 本次金额）滚动到新余额
-          const balValEl = overviewEl.querySelector('.overview-card-value');
-          if (balValEl) this.rollNumber(balValEl, newBalance - amount, newBalance);
-        }
-        // 金额从按钮飞到余额卡片
-        this.flyAmountToCard(amount, btnRect, overviewEl);
-        // 居中弹窗 + 撒花 + 顶部提示
-        this.showBasicClaimToast(amount);
-        this.toast(`¥${amount.toFixed(1)} 基础零花钱已到账！`, 'success');
-        this.showConfetti();
-        this.renderHomeBasicTasks();
-        this.renderHomeWishProgress();
-        this.renderHomeTodayFeed();
-        this.renderMemberBar();
-        this.renderStreakBar();
-        this.checkAndNotify(memberId);
-      };
+    if (claimBtn) claimBtn.onclick = () => this.claimBasicAllowanceFlow(memberId, claimBtn);
+  },
+
+  // 领取今日基础零花钱公共流程（领取按钮 / 勾选完成后自动触发共用）
+  claimBasicAllowanceFlow(memberId, startEl) {
+    const result = Store.claimBasicAllowance(memberId);
+    if (result.error) { this.toast(result.error, 'error'); return; }
+    // claimBasicAllowance 直接返回 record 对象
+    const amount = result.amount;
+    // 记录起点元素位置（飞行动画起点）；元素若已被重渲染移除则不启用飞行
+    const startRect = (startEl && startEl.isConnected) ? startEl.getBoundingClientRect() : null;
+    // 直接更新余额 DOM — 最可靠的方式
+    const overviewEl = document.getElementById('overviewCards');
+    if (overviewEl) {
+      const newBalance = Store.getMemberBalance(memberId);
+      const weekStats = Store.getWeekStats(0);
+      const mw = weekStats.memberStats.find(m => m.id === memberId);
+      overviewEl.innerHTML =
+        `<div class="overview-card">
+          <div class="overview-card-label">💰 可用余额</div>
+          <div class="overview-card-value earn">¥${newBalance.toFixed(1)}</div>
+          <div class="overview-card-sub">累计 ${Store.getMemberEarned(memberId).toFixed(1)} · 罚款 ${Store.getMemberPenalties(memberId).toFixed(1)}</div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-card-label">📅 本周收支</div>
+          <div class="overview-card-value earn">+¥${(mw ? mw.earned : 0).toFixed(1)}</div>
+          <div class="overview-card-sub">${(mw && mw.penalty > 0) ? `罚款 -¥${mw.penalty.toFixed(1)}` : '暂无罚款 🎉'}</div>
+        </div>`;
+      // 余额数字滚动动画：从（新余额 - 本次金额）滚动到新余额
+      const balValEl = overviewEl.querySelector('.overview-card-value');
+      if (balValEl) this.rollNumber(balValEl, newBalance - amount, newBalance);
     }
+    // 金额飞到余额卡片
+    if (startRect && overviewEl) this.flyAmountToCard(amount, startRect, overviewEl);
+    // 居中弹窗 + 撒花 + 顶部提示
+    this.showBasicClaimToast(amount);
+    this.toast(`¥${amount.toFixed(1)} 今日基础零花钱已到账！`, 'success');
+    this.showConfetti();
+    this.renderHomeBasicTasks();
+    this.renderHomeWishProgress();
+    this.renderHomeTodayFeed();
+    this.renderMemberBar();
+    this.renderStreakBar();
+    this.checkAndNotify(memberId);
   },
 
   renderHomeTasks() {
@@ -484,35 +531,39 @@ const App = {
     const earnTasks = allTasks.filter(t => t.type !== 'penalty');
     const penaltyTasks = allTasks.filter(t => t.type === 'penalty');
 
-    const renderGrid = (tasks, containerId, isPenalty) => {
+    const renderList = (tasks, containerId, isPenalty) => {
       const el = document.getElementById(containerId);
       if (tasks.length === 0) {
-        el.innerHTML = `<div class="empty-state" style="padding:16px;grid-column:1/-1"><div class="empty-state-text">还没有项目</div></div>`;
+        el.innerHTML = `<div class="earn-empty">还没有${isPenalty ? '扣款' : '赚钱'}项目</div>`;
         return;
       }
-      el.innerHTML = tasks.map(t => `
-        <div class="task-card-mobile ${isPenalty ? 'penalty' : ''}" data-task-id="${t.id}">
-          <div class="task-card-icon">${t.icon}</div>
-          <div class="task-card-name">${this.escape(t.name)}</div>
-          <div class="task-card-amount ${isPenalty ? 'penalty' : 'earn'} amount-editable" data-amount-task="${t.id}">${isPenalty ? '-' : '+'}¥${Math.abs(t.amount).toFixed(1)}</div>
-        </div>`).join('');
+      el.innerHTML = tasks.map(t => {
+        const sign = isPenalty ? '-' : '+';
+        const absAmt = Math.abs(t.amount).toFixed(0);
+        return `
+          <div class="earn-row ${isPenalty ? 'penalty' : 'earn'}" data-task-id="${t.id}">
+            <div class="earn-row-icon">${t.icon}</div>
+            <div class="earn-row-name">${this.escape(t.name)}</div>
+            <div class="earn-row-amount ${isPenalty ? 'penalty' : 'earn'} amount-editable" data-amount-task="${t.id}">${sign}¥${absAmt}</div>
+          </div>`;
+      }).join('');
 
-      el.querySelectorAll('.task-card-mobile').forEach(card => {
-        card.addEventListener('click', (e) => {
+      el.querySelectorAll('.earn-row').forEach(row => {
+        row.addEventListener('click', (e) => {
           if (e.target.classList.contains('amount-editable')) {
             e.stopPropagation();
             this.openInlineAmountEdit(e.target.dataset.amountTask, e.target);
             return;
           }
           if (!memberId) { this.toast('请先选择成员', 'error'); return; }
-          this.state.selectedTask = card.dataset.taskId;
+          this.state.selectedTask = row.dataset.taskId;
           this.quickCheckin();
         });
       });
     };
 
-    renderGrid(earnTasks, 'homeEarnTasks', false);
-    renderGrid(penaltyTasks, 'homePenaltyTasks', true);
+    renderList(earnTasks, 'homeEarnTasks', false);
+    renderList(penaltyTasks, 'homePenaltyTasks', true);
   },
 
   renderHomeTodayFeed() {
@@ -706,15 +757,34 @@ const App = {
     const lb = Store.getLeaderboard();
     const container = document.getElementById('rankingList');
     if (lb.length === 0) { container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><div class="empty-state-text">还没有成员</div></div>`; return; }
-    const medals = ['🥇', '🥈', '🥉'];
+
+    // 计算本周收入（用于排行卡的"本周"显示）
+    const weekStats = Store.getWeekStats(0);
+    const weekById = {};
+    weekStats.memberStats.forEach(ms => { weekById[ms.id] = ms; });
+
     container.innerHTML = lb.map((m, i) => {
       const rank = i + 1;
-      return `<div class="ranking-card ${rank<=3?'rank-'+rank:''}">
-        <div class="ranking-badge">${rank<=3?medals[i]:rank}</div>
-        <div class="ranking-avatar" style="background:${m.color}18;color:${m.color}">${m.avatar}</div>
-        <div class="ranking-info"><div class="ranking-name">${this.escape(m.name)}</div><div class="ranking-detail">收入 ¥${m.earned.toFixed(1)}${m.penalties>0?' · 罚款 ¥'+m.penalties.toFixed(1):''} · ${m.taskCount}次</div></div>
-        <div class="ranking-score"><div class="ranking-score-value">¥${m.balance.toFixed(1)}</div><div class="ranking-score-label">结余</div></div>
-      </div>`;
+      const w = weekById[m.id] || {};
+      const weekEarned = (w.earned || 0) - (w.spent || 0); // 本周净赚
+      const isFirst = rank === 1;
+      return `
+        <div class="ranking-card ${isFirst ? 'rank-1' : ''}">
+          <div class="ranking-rank-badge ${isFirst ? 'gold' : ''}">${rank}</div>
+          <div class="ranking-avatar" style="background:${m.color}22;color:${m.color}">${m.avatar}</div>
+          <div class="ranking-info">
+            <div class="ranking-name">${this.escape(m.name)}</div>
+            <div class="ranking-week-row">
+              <span class="ranking-delta">+¥${weekEarned.toFixed(0)}</span>
+              <span class="ranking-week-label">本周</span>
+            </div>
+          </div>
+          <div class="ranking-amount">
+            <div class="ranking-amount-value">¥${m.balance.toFixed(0)}</div>
+            <div class="ranking-amount-label">结余</div>
+          </div>
+          ${isFirst ? '<div class="ranking-crown">👑</div>' : ''}
+        </div>`;
     }).join('');
   },
 
@@ -733,44 +803,42 @@ const App = {
     const activeWishes = wishes.filter(w => !achievedIds.has(w.id));
 
     if (activeWishes.length === 0) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🌟</div><div class="empty-state-text">${wishes.length > 0 ? '所有心愿都已达成 🎉' : '还没有心愿'}</div><button class="btn-add-wish-empty" id="btnAddWishEmpty">＋ 添加新心愿</button></div>`;
+      container.innerHTML = `<div class="wish-card-empty"><div class="wish-card-empty-icon">🌟</div><div class="wish-card-empty-text">${wishes.length > 0 ? '所有心愿都已达成 🎉' : '还没有心愿，去添加一个吧'}</div><button class="btn-add-wish-empty" id="btnAddWishEmpty">＋ 添加新心愿</button></div>`;
     } else {
+      const w = activeWishes[0];
+      const progress = Math.min(balance / w.targetAmount * 100, 100);
+      const canAchieve = memberId && balance >= w.targetAmount;
+      const remaining = w.targetAmount - balance;
+      const displayName = w.description ? w.description : w.name;
 
-      container.innerHTML = activeWishes.map(w => {
-        const progress = Math.min(balance / w.targetAmount * 100, 100);
-        const canAchieve = memberId && balance >= w.targetAmount;
-        const coins = this._buildWishCoins(w.targetAmount);
-
-        return `<div class="wish-card ${canAchieve ? 'achievable' : ''}">
-          <div class="wish-header">
-            <div class="wish-icon">${w.icon}</div>
-            <div class="wish-info">
-              <div class="wish-name">${this.escape(w.name)}</div>
-              ${w.description ? `<div class="wish-desc">${this.escape(w.description)}</div>` : ''}
+      container.innerHTML = `
+        <div class="wish-card-large ${canAchieve ? 'achievable' : ''}">
+          <div class="wish-card-large-header">
+            <div class="wish-card-large-title">
+              <span class="wish-card-large-icon">${w.icon}</span>
+              <span>我的愿望 (My Wish)</span>
             </div>
-            <div class="wish-actions">
-              <button class="icon-btn" data-edit-wish="${w.id}">✏️</button>
-              <button class="icon-btn" data-delete-wish="${w.id}">🗑️</button>
+            <button class="wish-card-edit-btn" data-edit-wish="${w.id}">Edit</button>
+          </div>
+          <div class="wish-card-large-name">${this.escape(displayName)}</div>
+          <div class="wish-card-large-progress">
+            <div class="wish-progress-bar-large">
+              <div class="wish-progress-fill-large ${progress >= 100 ? 'complete' : ''}" style="width:${progress}%"></div>
+            </div>
+            <div class="wish-progress-text-large">
+              <span class="wish-progress-current-large">¥${balance.toFixed(1)}</span>
+              <span class="wish-progress-target-large">¥${w.targetAmount.toFixed(1)} to go!</span>
             </div>
           </div>
-          <div class="wish-progress-section">
-            <div class="wish-progress-bar">
-              <div class="wish-progress-fill ${progress >= 100 ? 'complete' : ''}" style="width:${progress}%"></div>
-            </div>
-            <div class="wish-progress-text">
-              <span class="wish-progress-current">¥${balance.toFixed(1)}</span>
-              <span class="wish-progress-target">目标 ¥${w.targetAmount.toFixed(1)}</span>
-            </div>
-          </div>
-          <div class="wish-footer">
-            <div class="wish-coins">${coins}</div>
-            ${memberId ? `
-              <button class="wish-achieve-btn ${canAchieve ? '' : 'disabled'}" data-achieve-wish="${w.id}" ${canAchieve ? '' : 'disabled'}>
-                ${canAchieve ? '🎉 达成心愿' : `还差 ¥${(w.targetAmount - balance).toFixed(1)}`}
-              </button>` : '<span style="font-size:11px;color:var(--text-3)">请先选择成员</span>'}
+          ${activeWishes.length > 1 ? `<div class="wish-card-more">+${activeWishes.length - 1} more</div>` : ''}
+          ${memberId ? `
+            <button class="wish-achieve-btn-large ${canAchieve ? '' : 'disabled'}" data-achieve-wish="${w.id}" ${canAchieve ? '' : 'disabled'}>
+              ${canAchieve ? '🎉 达成心愿' : `还差 ¥${remaining.toFixed(1)}`}
+            </button>` : ''}
+          <div class="wish-card-large-actions">
+            <button class="reward-icon-btn" data-delete-wish="${w.id}">🗑️</button>
           </div>
         </div>`;
-      }).join('');
 
       container.querySelectorAll('[data-edit-wish]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); this.openWishModal(b.dataset.editWish); }));
       container.querySelectorAll('[data-delete-wish]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); this.confirmDeleteWish(b.dataset.deleteWish); }));
@@ -949,7 +1017,7 @@ const App = {
 
     // 设置
     const settings = Store.getSettings();
-    document.getElementById('weeklyBaseDisplay').textContent = `¥${settings.weeklyBaseAmount} / 周`;
+    document.getElementById('weeklyBaseDisplay').textContent = `¥${settings.weeklyBaseAmount} / 天`;
 
     // 清除缓存按钮
     const clearBtn = document.getElementById('btnClearCache');
@@ -968,58 +1036,48 @@ const App = {
 
     const allAchievements = Store.getAllAchievements(memberId);
     const streak = Store.getMemberStreak(memberId);
-    const stats = Store.getMemberStats(memberId);
     const unlockedCount = allAchievements.filter(a => a.unlocked).length;
-
-    // 按类别分组
-    const categories = [
-      { key: 'streak',    label: '🔥 打卡坚持', items: allAchievements.filter(a => a.category === 'streak') },
-      { key: 'wealth',    label: '💰 财富积累', items: allAchievements.filter(a => a.category === 'wealth') },
-      { key: 'diligent',  label: '🧹 勤劳之星', items: allAchievements.filter(a => a.category === 'diligent') },
-      { key: 'milestone', label: '⭐ 里程碑',   items: allAchievements.filter(a => a.category === 'milestone') },
-    ];
 
     let html = `
       <div class="ach-stats-bar">
         <div class="ach-stat-item">
-          <div class="ach-stat-icon">🔥</div>
-          <div class="ach-stat-value">${streak.currentStreak}</div>
-          <div class="ach-stat-label">连续天数</div>
-        </div>
-        <div class="ach-stat-item">
-          <div class="ach-stat-icon">👑</div>
-          <div class="ach-stat-value">${streak.bestStreak}</div>
-          <div class="ach-stat-label">最佳记录</div>
-        </div>
-        <div class="ach-stat-item">
-          <div class="ach-stat-icon">🏅</div>
-          <div class="ach-stat-value">${unlockedCount}/${allAchievements.length}</div>
+          <div class="ach-stat-value orange">${unlockedCount}/${allAchievements.length}</div>
           <div class="ach-stat-label">已解锁</div>
         </div>
+        <div class="ach-stat-divider"></div>
         <div class="ach-stat-item">
-          <div class="ach-stat-icon">📋</div>
-          <div class="ach-stat-value">${stats.totalTasks}</div>
-          <div class="ach-stat-label">总任务数</div>
+          <div class="ach-stat-value green">${streak.currentStreak} <span class="ach-stat-unit">天</span></div>
+          <div class="ach-stat-label">连续打卡</div>
         </div>
-      </div>`;
+        <div class="ach-stat-divider"></div>
+        <div class="ach-stat-item">
+          <div class="ach-stat-value green">${streak.bestStreak} <span class="ach-stat-unit">天</span></div>
+          <div class="ach-stat-label">最高记录</div>
+        </div>
+      </div>
+      <div class="ach-section-header">
+        <span class="ach-section-title-content">
+          <span class="ach-section-icon">🏆</span>
+          <span>勋章墙</span>
+          <span class="ach-progress-count">${unlockedCount}/${allAchievements.length}</span>
+        </span>
+        <button class="ach-add-btn" title="查看成就详情">+</button>
+      </div>
+      <div class="ach-badge-grid">`;
 
-    categories.forEach(cat => {
-      html += `<div class="ach-category-title">${cat.label}</div>`;
-      html += `<div class="ach-grid">`;
-      cat.items.forEach(item => {
-        html += `
-          <div class="ach-card ${item.unlocked ? 'unlocked' : 'locked'}">
-            <div class="ach-card-icon" style="${item.unlocked ? `background:${item.color}22;color:${item.color}` : ''}">${item.unlocked ? item.icon : '🔒'}</div>
-            <div class="ach-card-info">
-              <div class="ach-card-name">${item.name}</div>
-              <div class="ach-card-desc">${item.desc}</div>
+    allAchievements.forEach(item => {
+      const ringColor = item.color || '#FFC93C';
+      html += `
+          <div class="ach-badge ${item.unlocked ? 'unlocked' : 'locked'}" ${item.unlocked ? `style="--ring:${ringColor}"` : ''}>
+            <div class="ach-badge-ring">
+              <div class="ach-badge-icon">${item.icon}</div>
+              ${item.unlocked ? '' : '<div class="ach-badge-lock">🔒</div>'}
             </div>
-            ${item.unlocked ? '<div class="ach-card-check">✅</div>' : ''}
+            <div class="ach-badge-name">${item.name}</div>
           </div>`;
-      });
-      html += `</div>`;
     });
 
+    html += `</div>`;
     container.innerHTML = html;
   },
 
@@ -1035,9 +1093,9 @@ const App = {
 
   openWeeklyBaseModal() {
     const settings = Store.getSettings();
-    document.getElementById('modalTitle').textContent = '每周基础零花钱';
+    document.getElementById('modalTitle').textContent = '每日基础零花钱';
     document.getElementById('modalBody').innerHTML = `
-      <div class="form-group"><label class="form-label">金额（元/周）</label>
+      <div class="form-group"><label class="form-label">金额（元/天）</label>
         <input type="number" class="form-input" id="weeklyBaseInput" value="${settings.weeklyBaseAmount}" min="0" max="999" step="0.5"></div>
       <div class="form-actions"><button class="btn btn-cancel" id="formCancelBtn">取消</button><button class="btn btn-primary" id="formSaveBtn">保存</button></div>
     `;
@@ -1244,27 +1302,61 @@ const App = {
   renderRewardsView() {
     this.renderRewards();
     this.renderWishes();
-    this.renderAchievements();
+  },
+
+  // ==================== 成就页（成就墙 + 收支记录） ====================
+
+  renderAchievementsView() {
+    // 确保成就页有默认激活的子标签（避免跨页 sub-tab active 状态被清掉）
+    let activeSub = document.querySelector('#view-achievements .sub-tab.active');
+    if (!activeSub) {
+      document.querySelectorAll('#view-achievements .sub-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('#view-achievements .sub-page').forEach(p => p.classList.remove('active'));
+      const def = document.querySelector('#view-achievements .sub-tab[data-subtab="achievements"]');
+      if (def) def.classList.add('active');
+      const defPage = document.getElementById('subpage-achievements');
+      if (defPage) defPage.classList.add('active');
+      activeSub = document.querySelector('#view-achievements .sub-tab.active');
+    }
+    if (activeSub && activeSub.dataset.subtab === 'records') this.renderRecords();
+    else this.renderAchievements();
   },
 
   renderRewards() {
+    const memberId = this.state.selectedMemberId;
     const rewards = Store.getRewards();
     const container = document.getElementById('rewardList');
-    if (rewards.length === 0) { container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎁</div><div class="empty-state-text">还没有奖励</div></div>`; return; }
-    container.innerHTML = rewards.map(r => `
-      <div class="reward-card">
-        <div class="reward-icon">${r.icon}</div>
-        <div class="reward-info"><div class="reward-name">${this.escape(r.name)}</div>${r.description?`<div class="reward-desc">${this.escape(r.description)}</div>`:''}</div>
-        <div class="reward-actions">
-          <div class="reward-cost">¥${r.amount.toFixed(1)}</div>
-          <button class="btn-redeem" data-redeem="${r.id}">兑换</button>
-          <div style="display:flex;gap:4px">
-            <button class="icon-btn" data-edit-reward="${r.id}">✏️</button>
-            <button class="icon-btn" data-delete-reward="${r.id}">🗑️</button>
-          </div>
+    if (rewards.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎁</div><div class="empty-state-text">还没有奖励</div></div>`;
+      return;
+    }
+    const balance = memberId ? Store.getMemberBalance(memberId) : 0;
+    const colorPalette = ['#FECACA','#DDD6FE','#FDE68A','#A7F3D0','#BFDBFE','#FBCFE8','#FCD34D','#E9D5FF'];
+    container.innerHTML = rewards.map((r, i) => {
+      const bgColor = colorPalette[i % colorPalette.length];
+      const insufficient = balance < r.amount;
+      return `
+      <div class="reward-card-large ${insufficient ? 'locked' : ''}" data-reward-id="${r.id}">
+        ${insufficient ? '<div class="reward-lock-badge">🔒</div>' : ''}
+        <div class="reward-icon-large" style="background:${bgColor}">${r.icon}</div>
+        <div class="reward-title">${this.escape(r.name)}</div>
+        <div class="reward-subtitle">${this.escape(r.description || '')}</div>
+        <div class="reward-price-row">
+          <span class="reward-price-coin">🪙</span>
+          <span class="reward-price-amount">${r.amount.toFixed(0)}</span>
         </div>
-      </div>`).join('');
-    container.querySelectorAll('[data-redeem]').forEach(b => b.addEventListener('click', () => this.openRedeemModal(b.dataset.redeem)));
+        <button class="btn-redeem-large" data-redeem="${r.id}" ${insufficient ? 'disabled' : ''}>兑换 (Redeem)</button>
+        <div class="reward-edit-actions">
+          <button class="reward-icon-btn" data-edit-reward="${r.id}">✏️</button>
+          <button class="reward-icon-btn" data-delete-reward="${r.id}">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('[data-redeem]').forEach(b => {
+      if (b.disabled) return;
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.openRedeemModal(b.dataset.redeem); });
+    });
     container.querySelectorAll('[data-edit-reward]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); this.openRewardModal(b.dataset.editReward); }));
     container.querySelectorAll('[data-delete-reward]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); this.confirmDeleteReward(b.dataset.deleteReward); }));
   },
@@ -1651,8 +1743,9 @@ const App = {
     container.innerHTML = `
       <div class="basic-claim-card">
         <div class="basic-claim-badge">💵</div>
-        <div class="basic-claim-title">🎉 本周基础零花钱到账！</div>
+        <div class="basic-claim-title">🎉 今日已完成！</div>
         <div class="basic-claim-amount">+¥${amount.toFixed(1)}</div>
+        <div class="basic-claim-desc">今日基础零花钱已到账 ✨</div>
         <button class="basic-claim-btn" id="btnBasicClaimClose">知道啦 ✨</button>
       </div>`;
     // 同步加 class 立即显示（display 切换必定触发重绘，不依赖 rAF/过渡动画）
