@@ -85,8 +85,8 @@ const Store = {
   getSettings() {
     const raw = localStorage.getItem(this.KEYS.SETTINGS);
     const defaults = {
-      weeklyBaseAmount: 10, // 每周基础零花钱（元）
-      payday: 'sunday',     // 发薪日
+      weeklyBaseAmount: 2, // 每日基础零花钱（元）
+      payday: 'sunday',    // 发薪日（保留字段）
     };
     try {
       const parsed = raw ? JSON.parse(raw) : {};
@@ -235,23 +235,23 @@ const Store = {
   },
 
   /**
-   * 标记基础任务完成（按周重置）
+   * 标记基础任务完成（按天重置）
    */
   toggleBasicTaskThisWeek(id, memberId) {
     const tasks = this.getBasicTasks();
     const idx = tasks.findIndex(t => t.id === id);
     if (idx === -1) return null;
 
-    const currentWeek = this._weekStr();
+    const todayStr = this._todayStr();
     const task = tasks[idx];
 
-    // completedBy: { memberId: '2026-W32' }
+    // completedBy: { memberId: '2026-08-17' }
     const completedBy = task.completedBy || {};
 
-    if (completedBy[memberId] === currentWeek) {
+    if (completedBy[memberId] === todayStr) {
       delete completedBy[memberId];
     } else {
-      completedBy[memberId] = currentWeek;
+      completedBy[memberId] = todayStr;
     }
 
     task.completedBy = completedBy;
@@ -263,7 +263,7 @@ const Store = {
     const task = this.getBasicTask(taskId);
     if (!task) return false;
     const completedBy = task.completedBy || {};
-    return completedBy[memberId] === this._weekStr();
+    return completedBy[memberId] === this._todayStr();
   },
 
   getBasicTaskProgress(memberId) {
@@ -278,35 +278,38 @@ const Store = {
   },
 
   /**
-   * 领取本周基础零花钱
+   * 领取今日基础零花钱（每日一次）
    */
   claimBasicAllowance(memberId) {
     const settings = this.getSettings();
-    const progress = this.getBasicTaskProgress(memberId);
-    if (!progress.allDone) return { error: '本周必完成项还没全部完成' };
 
-    // 检查本周是否已领取
-    const currentWeek = this._weekStr();
+    // 规则：当日全部基础任务完成即可领取
+    const progress = this.getBasicTaskProgress(memberId);
+    if (progress.total === 0 || !progress.allDone) {
+      return { error: '今天的必做任务还没全部完成' };
+    }
+
+    // 检查今天是否已领取（每日一次）
+    const todayStr = this._todayStr();
     const alreadyClaimed = this.getRecords().some(r =>
       r.memberId === memberId &&
       r.recordType === 'basic' &&
-      r.week === currentWeek
+      r.date === todayStr
     );
-    if (alreadyClaimed) return { error: '本周基础零花钱已领取' };
+    if (alreadyClaimed) return { error: '今日基础零花钱已领取' };
 
     const records = this.getRecords();
     const record = {
       id: this._uid(),
       memberId,
       taskId: 'basic',
-      taskName: '本周基础零花钱',
+      taskName: '今日基础零花钱',
       taskIcon: '💵',
       amount: settings.weeklyBaseAmount,
       recordType: 'basic',
-      week: currentWeek,
-      date: this._todayStr(),
+      date: todayStr,
       timestamp: Date.now(),
-      note: '完成本周必完成项奖励',
+      note: '完成今日必做任务奖励',
     };
     records.push(record);
     this._write(this.KEYS.RECORDS, records);
@@ -680,7 +683,7 @@ const Store = {
     { id: 'first_task',   category: 'milestone', name: '初次打卡',   icon: '🎉', desc: '完成第一个任务',     condition: (stats) => stats.totalTasks >= 1,    color: '#FF9A8B' },
     { id: 'first_redeem', category: 'milestone', name: '首次兑换',   icon: '🎁', desc: '兑换第一个奖励',     condition: (stats) => stats.redemptionCount >= 1, color: '#FFD93D' },
     { id: 'first_wish',   category: 'milestone', name: '梦想成真',   icon: '🌟', desc: '达成第一个心愿',     condition: (stats) => stats.wishCount >= 1,     color: '#C084FC' },
-    { id: 'full_week',    category: 'milestone', name: '全勤星期',   icon: '📅', desc: '一周内完成全部基础任务', condition: (stats) => stats.weekFullDone,      color: '#6BCB77' },
+    { id: 'full_week',    category: 'milestone', name: '全勤星期',   icon: '📅', desc: '连续打卡满 7 天',     condition: (stats) => stats.weekFullDone,      color: '#6BCB77' },
   ],
 
   _getAchievements() {
@@ -697,9 +700,8 @@ const Store = {
     const redeems = this.getRedemptionsByMember(memberId);
     const wishAchievements = this.getWishAchievementsByMember(memberId);
 
-    // 全勤检查：本周该成员的基础任务是否全部完成
-    const basicTasks = this.getBasicTasks();
-    const weekFullDone = basicTasks.length > 0 && this.getBasicTaskProgress(memberId).allDone;
+    // 全勤检查：连续打卡满 7 天（与基础零花钱领取条件一致）
+    const weekFullDone = streak.currentStreak >= 7;
 
     return {
       totalEarned: records.filter(r => r.amount > 0).reduce((sum, r) => sum + r.amount, 0),
